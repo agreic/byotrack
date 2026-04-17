@@ -1,0 +1,65 @@
+Experiment Disk Structure (quick reference)
+=========================================
+
+Observed root (example): D:\AG
+
+Top-level pattern
+-----------------
+- Experiment folders are named by experiment ID/date code, e.g.:
+  - 230624DS30
+  - 230629DS30
+  - 230913DS30
+  - 260112AC11
+
+Inside one experiment folder
+----------------------------
+Example: D:\AG\230624DS30
+
+Common contents:
+1) Per-FOV (position) subfolders
+   - Naming pattern: <EXP_NAME>_pXXXX
+   - Example:
+     - 230624DS30_p0001
+     - 230624DS30_p0002
+     - ...
+     - 230624DS30_p0032
+
+2) Analysis folder
+   - Path: <EXP>\Analysis
+   - Contains analysis-specific runs, notably segmentation outputs.
+
+Segmentation structure under Analysis
+-------------------------------------
+Example paths:
+- D:\AG\230624DS30\Analysis\Segmentation_230628
+- D:\AG\230624DS30\Analysis\Segmentation_230704
+
+Each segmentation run is structured again per FOV:
+- <EXP>\Analysis\Segmentation_<RUN_NAME>\<EXP>_pXXXX
+
+So the position hierarchy is mirrored:
+- Raw/experiment side: <EXP>\<EXP>_pXXXX
+- Analysis/segmentation side: <EXP>\Analysis\Segmentation_*\<EXP>_pXXXX
+
+Compact tree example
+--------------------
+D:\AG\
+  230624DS30\
+    230624DS30_p0001\
+    230624DS30_p0002\
+    ...
+    230624DS30_p0032\
+    Analysis\
+      Segmentation_230627\
+        230624DS30_p0001\
+        ...
+      Segmentation_230628\
+        230624DS30_p0001\
+        ...
+
+Naming conventions summary
+--------------------------
+- Experiment: <date/code>, e.g. 230624DS30
+- Position/FOV: <EXP>_pXXXX (zero-padded index)
+- Segmentation run: Segmentation_<date_or_label>
+- Segmentation output per position mirrors FOV folder naming from the experiment root.

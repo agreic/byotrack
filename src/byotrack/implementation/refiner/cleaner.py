@@ -78,8 +78,11 @@ class Cleaner(byotrack.Refiner):
         n_filtered = 0
         cleaned_tracks: list[byotrack.Track] = []
 
+        tracks = list(tracks)
+        next_identifier = max((track.identifier for track in tracks), default=-1) + 1
+
         for track in tracks:
-            cleaned = []
+            cleaned: list[byotrack.Track] = []
             if max_dist <= 0:
                 cleaned.append(track)
             else:
@@ -87,11 +90,17 @@ class Cleaner(byotrack.Refiner):
                 first = 0
                 for i in range(len(track) - 1):
                     if speed[i] > max_dist:  # Break (i -> i + 1)
+                        # Keep the original identifier for the first fragment only.
+                        # Additional fragments receive fresh identifiers to avoid duplicates.
+                        identifier = track.identifier if first == 0 else next_identifier
+                        if first != 0:
+                            next_identifier += 1
+
                         cleaned.append(
                             byotrack.Track(
                                 track.start + first,
                                 track.points[first : i + 1],
-                                identifier=track.identifier,
+                                identifier=identifier,
                                 detection_ids=track.detection_ids[first : i + 1],
                                 parent_id=track.parent_id if first == 0 else -1,
                             )
@@ -100,11 +109,15 @@ class Cleaner(byotrack.Refiner):
                         n_split += 1
 
                 # There is at least one element left
+                identifier = track.identifier if first == 0 else next_identifier
+                if first != 0:
+                    next_identifier += 1
+
                 cleaned.append(
                     byotrack.Track(
                         track.start + first,
                         track.points[first:],
-                        identifier=track.identifier,
+                        identifier=identifier,
                         detection_ids=track.detection_ids[first:],
                         merge_id=track.merge_id,
                     )
@@ -115,6 +128,23 @@ class Cleaner(byotrack.Refiner):
             n_filtered -= len(cleaned)
 
             cleaned_tracks.extend(cleaned)
+
+        # Cleaner can drop split/merge branches; clear stale lineage to keep track graph consistent.
+        # Keep lineage only when exactly two tracks point to the same parent/merge id and the target exists.
+        existing_ids = {track.identifier for track in cleaned_tracks}
+        parent_counts: dict[int, int] = {}
+        merge_counts: dict[int, int] = {}
+        for track in cleaned_tracks:
+            if track.parent_id != -1:
+                parent_counts[track.parent_id] = parent_counts.get(track.parent_id, 0) + 1
+            if track.merge_id != -1:
+                merge_counts[track.merge_id] = merge_counts.get(track.merge_id, 0) + 1
+
+        for track in cleaned_tracks:
+            if track.parent_id != -1 and (track.parent_id not in existing_ids or parent_counts.get(track.parent_id, 0) != 2):
+                track.parent_id = -1
+            if track.merge_id != -1 and (track.merge_id not in existing_ids or merge_counts.get(track.merge_id, 0) != 2):
+                track.merge_id = -1
 
         print(f"Cleaning: Split {n_split} tracks and dropped {n_filtered} resulting ones")  # noqa: T201
         print(f"Cleaning: From {len(tracks)} to {len(cleaned_tracks)} tracks")  # noqa: T201

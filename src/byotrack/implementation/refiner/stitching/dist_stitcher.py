@@ -102,6 +102,28 @@ class DistStitcher(byotrack.Refiner):
                 )
             )
 
+        # Stitching can invalidate lineage references when component identifiers change.
+        # Keep only references to existing tracks and only valid binary split/merge links.
+        existing_ids = {track.identifier for track in merged_tracks}
+        parent_counts: dict[int, int] = {}
+        merge_counts: dict[int, int] = {}
+
+        for track in merged_tracks:
+            if track.parent_id != -1:
+                parent_counts[track.parent_id] = parent_counts.get(track.parent_id, 0) + 1
+            if track.merge_id != -1:
+                merge_counts[track.merge_id] = merge_counts.get(track.merge_id, 0) + 1
+
+        for track in merged_tracks:
+            if track.parent_id != -1 and (
+                track.parent_id not in existing_ids or parent_counts.get(track.parent_id, 0) != 2
+            ):
+                track.parent_id = -1
+            if track.merge_id != -1 and (
+                track.merge_id not in existing_ids or merge_counts.get(track.merge_id, 0) != 2
+            ):
+                track.merge_id = -1
+
         return merged_tracks
 
     @staticmethod
